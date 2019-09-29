@@ -74,6 +74,7 @@
 &emsp;&emsp;LN的操作和BN的区别, 用下面的这张图表示比较明显
 
 ![BN和LN的区别.jpg](img/Batch-Normalization和Layer-Normalization的简单区别/BN和LN的区别.jpg)
+
 来自https://www.zhihu.com/question/48820040
 
 &emsp;&emsp;LN相当于一次对一个数据进行求均值和方差, 例如一个batch size输入了32张图片, 那么这次LN就会计算出来32个均值和方差, 分别对应32张图片. 这样的话, LN就不会受到batch size值大小的影响, 同时也就不会受到序列长度不一致的影响, 也就可以应用在RNN中. 同时也可以应用在推导的过程中
