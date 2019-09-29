@@ -61,7 +61,7 @@ $$
 
 ![transformer_self_attention_vectors.png](img/attention/transformer_self_attention_vectors.png)
 
-&emsp;&emsp;从上图中可以看到, 使用$W^Q、W^K、W^V$对输入的词向量$X_1, ..., X_n$相乘, 然后得到我们需要的$Q、K、V$.
+&emsp;&emsp;从上图中可以看到, 使用$W^Q、W^K、W^V$对输入的词向量$X_1, ..., X_n$做矩阵乘法, 然后得到我们需要的$Q、K、V$.
 
 ![img/attention/self-attention-output.png](img/attention/self-attention-output.png)
 
