@@ -22,7 +22,7 @@ Figure 1. Lena
 
 &emsp;&emsp;常用的attention计算法方法, 是描述成一个查询(query)和键值对(key-value)的形式, 如下图所示
 
-![通用attention框架示意图](img/attention/通用attention框架示意图.png)
+![通用attention框架示意图](img/2019-9-22-Transformer/通用attention框架示意图.png)
 
 &emsp;&emsp;主要分3步, 第一步将$Query$和$Key$进行相乘然后得到初步的权重, 常用的$F(Q,K)$函数有
 
@@ -43,7 +43,7 @@ $$
 
 &emsp;&emsp;但是在实际情况中, 经常是$Key$和$Value$是一样的, 也就是下面的这样:
 
-![key-value相同的attention框架示意图](img/attention/key-value相同的attention框架示意图.png)
+![key-value相同的attention框架示意图](img/2019-9-22-Transformer/key-value相同的attention框架示意图.png)
 
 ## Self-Attention
 
@@ -59,11 +59,11 @@ $$
 
 &emsp;&emsp;我们这里先按第一种方式来讲, 因为都是差不多的
 
-![transformer_self_attention_vectors.png](img/attention/transformer_self_attention_vectors.png)
+![transformer_self_attention_vectors.png](img/2019-9-22-Transformer/transformer_self_attention_vectors.png)
 
 &emsp;&emsp;从上图中可以看到, 使用$W^Q、W^K、W^V$对输入的词向量$X_1, ..., X_n$做矩阵乘法, 然后得到我们需要的$Q、K、V$.
 
-![img/attention/self-attention-output.png](img/attention/self-attention-output.png)
+![img/attention/self-attention-output.png](img/2019-9-22-Transformer/self-attention-output.png)
 
 &emsp;&emsp;上面就是Self-Attention的运算过程了. 例如在我们得到了Thinking的$Q、K、V$之后, 我们需要做的就是让$q_1$和$k_1, k_2$做矩阵乘法,然后得到Thinking的$Q$对于所有$K$的得分. 然后让这些得分除以8, 这里的8是因为论文中的K的维度是1*64, 而$\sqrt{64} = 8$. 论文说这里是为了梯度稳定. 然后再通过Softmax, 就可以得到每个$V$的最终比例. 这里将所有的$V$和对应的得分进行相乘, 然后相加, 就得到了Thinking的得分$z_1$. 之后通过相同的办法,让Machines的$Q,K,V$也经过步骤, 然后得到Machines的最终结果$z_2$.
 
@@ -73,7 +73,7 @@ $$
 
 &emsp;&emsp;上面的其实只是多头Attention的其中一个"头". 在原论文中, 编码器这头其实有8个这样的"头", 什么意思呢, 其实可以看下图:
 
-![img/attention/transformer_attention_heads_qkv.png](img/attention/transformer_attention_heads_qkv.png)
+![img/attention/transformer_attention_heads_qkv.png](img/2019-9-22-Transformer/transformer_attention_heads_qkv.png)
 
 &emsp;&emsp;这里举出了两个"头", 其实就是我们在进行Self-Attention的时候, 我们是并行进行的, 也就是说同时会有8个这样的Self-Attention在计算. 根据我看的资料, 据说这样可以让句子中的一些单词有多个可以注意的对象. 例如$I \ like \ watching \ TV \ and \ Playing \ games$, 这里的$I$的关注对象其实有两个, 一个是$TV$, 一个是$games$. 如果只使用一个"头"的话, 可能导致这里的$I$对这两个的关注不够, 但是使用多个"头"就可以避免这样的情况 
 
