@@ -2,21 +2,23 @@
 目录
 =================
 
+   * [目录](#目录)
    * [pytorch多gpu并行训练](#pytorch多gpu并行训练)
-      * [单机多卡并行训练](#单机多卡并行训练)
-         * [torch.nn.DataParallel](#torchnndataparallel)
-         * [torch.nn.parallel.DistributedDataParallel](#torchnnparalleldistributeddataparallel)
-      * [多机多gpu训练](#多机多gpu训练)
-         * [初始化](#初始化)
-            * [初始化backend](#初始化backend)
-            * [初始化init_method](#初始化init_method)
-               * [使用TCP初始化](#使用tcp初始化)
-               * [使用共享文件系统初始化](#使用共享文件系统初始化)
-            * [初始化rank和world_size](#初始化rank和world_size)
-            * [初始化中一些需要注意的地方](#初始化中一些需要注意的地方)
-         * [数据的处理-DataLoader](#数据的处理-dataloader)
-         * [模型的处理](#模型的处理)
-         * [模型的保存与加载](#模型的保存与加载)
+      * [1.单机多卡并行训练](#1单机多卡并行训练)
+         * [1.1.torch.nn.DataParallel](#11torchnndataparallel)
+         * [1.2.torch.nn.parallel.DistributedDataParallel](#12torchnnparalleldistributeddataparallel)
+      * [2.多机多gpu训练](#2多机多gpu训练)
+         * [2.1.初始化](#21初始化)
+            * [2.1.1.初始化backend](#211初始化backend)
+            * [2.1.2.初始化init_method](#212初始化init_method)
+               * [2.1.2.1.使用TCP初始化](#2121使用tcp初始化)
+               * [2.1.2.2.使用共享文件系统初始化](#2122使用共享文件系统初始化)
+            * [2.1.3.初始化rank和world_size](#213初始化rank和world_size)
+            * [2.1.4.初始化中一些需要注意的地方](#214初始化中一些需要注意的地方)
+         * [2.2.数据的处理-DataLoader](#22数据的处理-dataloader)
+         * [2.3.模型的处理](#23模型的处理)
+         * [2.4.模型的保存与加载](#24模型的保存与加载)
+
 
 
 # pytorch多gpu并行训练
@@ -40,9 +42,9 @@
 
 <a href="https://pytorch.org/tutorials/intermediate/ddp_tutorial.html" traget="_blank">Getting Started with Distributed Data Parallel</a>
 
-## 单机多卡并行训练
+## 1.单机多卡并行训练
 
-### torch.nn.DataParallel
+### 1.1.torch.nn.DataParallel
 
 &emsp;&emsp;我一般在使用多GPU的时候, 会喜欢使用`os.environ['CUDA_VISIBLE_DEVICES']`来限制使用的GPU个数, 例如我要使用第0和第3编号的GPU, 那么只需要在程序中设置:
 
@@ -101,7 +103,7 @@ class DataParallel(Module):
 
 &emsp;&emsp;我没有进行深入得到考究, 但是我感觉使用`os.environ['CUDA_VISIBLE_DEVICES']`对可以使用的显卡进行限定之后, 显卡的实际编号和程序看到的编号应该是不一样的, 例如上面我们设定的是`os.environ['CUDA_VISIBLE_DEVICES']="0,2"`, 但是程序看到的显卡编号应该被改成了```'0,1'```, 也就是说程序所使用的显卡编号实际上是经过了一次映射之后才会映射到真正的显卡编号上面的, 例如这里的程序看到的1对应实际的2
 
-### torch.nn.parallel.DistributedDataParallel
+### 1.2.torch.nn.parallel.DistributedDataParallel
 
 &emsp;&emsp;pytorch的官网建议使用`DistributedDataParallel`来代替`DataParallel`, 据说是因为`DistributedDataParallel`比`DataParallel`运行的更快, 然后显存分屏的更加均衡. 而且`DistributedDataParallel`功能更加强悍, 例如分布式的模型(一个模型太大, 以至于无法放到一个GPU上运行, 需要分开到多个GPU上面执行). 只有`DistributedDataParallel`支持分布式的模型像单机模型那样可以进行多机多卡的运算.当然具体的怎么个情况, 建议看官方文档. 
 
@@ -140,7 +142,7 @@ model = nn.parallel.DistributedDataParallel(model)
 &emsp;&emsp;但是注意这里要先将`model`加载到GPU, 然后才能使用`DistributedDataParallel`进行分发, 之后的使用和`DataParallel`就基本一样了
 
 
-## 多机多gpu训练
+## 2.多机多gpu训练
 
 ***在单机多gpu可以满足的情况下, 绝对不建议使用多机多gpu进行训练, 我经过测试, 发现多台机器之间传输数据的时间非常慢, 主要是因为我测试的机器可能只是千兆网卡, 再加上别的一些损耗, 网络的传输速度跟不上, 导致训练速度实际很慢. 我看一个github上面的人说在单机8显卡可以满足的情况下, 最好不要进行多机多卡训练***
 
@@ -150,7 +152,7 @@ model = nn.parallel.DistributedDataParallel(model)
 
 <a href="https://github.com/edwhere/Distributed-VGG-F" traget="_blank">Distributed-VGG-F</a>
 
-### 初始化
+### 2.1.初始化
 
 *初始化操作一般在程序刚开始的时候进行*
 
@@ -163,7 +165,7 @@ world_size: 介绍都是说是进程, 实际就是机器的个数, 例如两台�
 rank: 区分主节点和从节点的, 主节点为0, 剩余的为了1-(N-1), N为要使用的机器的数量, 也就是world_size
 ```
 
-#### 初始化`backend`
+#### 2.1.1.初始化`backend`
 
 &emsp;&emsp;首先要初始化的是`backend`, 也就是俗称的后端, 在pytorch的官方教程中提供了以下这些<a href="https://pytorch.org/docs/stable/distributed.html#backends" traget="_blank">后端</a>
 
@@ -183,11 +185,11 @@ os.environ['NCCL_SOCKET_IFNAME'] = 'eth0'
 
 &emsp;&emsp;我们怎么知道自己的网络接口呢, 打开命令行, 然后输入`ifconfig`, 然后找到那个带自己ip地址的就是了, 我见过的一般就是`em0`, `eth0`, `esp2s0`之类的, 当然具体的根据你自己的填写. 如果没装`ifconfig`, 输入命令会报错, 但是根据报错提示安装一个就行了.
 
-#### 初始化`init_method`
+#### 2.1.2.初始化`init_method`
 
 &emsp;&emsp;初始化`init_method`的方法有两种, 一种是使用TCP进行初始化, 另外一种是使用共享文件系统进行初始化
 
-##### 使用TCP初始化
+##### 2.1.2.1.使用TCP初始化
 
 &emsp;&emsp;看代码:
 
@@ -200,7 +202,7 @@ dist.init_process_group(backend, init_method='tcp://10.1.1.20:23456',
 
 &emsp;&emsp;注意这里使用格式为`tcp://ip:端口号`, 首先`ip`地址是你的主节点的ip地址, 也就是`rank`参数为0的那个主机的ip地址, 然后再选择一个空闲的端口号, 这样就可以初始化`init_method`了.
 
-##### 使用共享文件系统初始化
+##### 2.1.2.2.使用共享文件系统初始化
 
 &emsp;&emsp;好像看到有些人并不推荐这种方法, 因为这个方法好像比TCP初始化要没法, 搞不好和你硬盘的格式还有关系, 特别是window的硬盘格式和Ubuntu的还不一样, 我没有测试这个方法, 看代码:
 
@@ -213,11 +215,11 @@ dist.init_process_group(backend, init_method='file:///mnt/nfs/sharedfile',
 
 &emsp;&emsp;根据官网介绍, 要注意提供的共享文件一开始应该是不存在的, 但是这个方法又不会在自己执行结束删除文件, 所以下次再进行初始化的时候, 需要手动删除上次的文件, 所以比较麻烦, 而且官网给了一堆警告, 再次说明了这个方法不如TCP初始化的简单.
 
-#### 初始化`rank`和`world_size`
+#### 2.1.3.初始化`rank`和`world_size`
 
 &emsp;&emsp;这里其实没有多难, 你需要确保, 不同机器的`rank`值不同, 但是主机的`rank`必须为0, 而且使用`init_method`的ip一定是`rank`为0的主机, 其次`world_size`是你的主机数量, 你不能随便设置这个数值, 你的参与训练的主机数量达不到`world_size`的设置值时, 代码是不会执行的.
 
-#### 初始化中一些需要注意的地方
+#### 2.1.4.初始化中一些需要注意的地方
 
 &emsp;&emsp;首先是代码的统一性, 所有的节点上面的代码, 建议完全一样, 不然有可能会出现一些问题, 其次, 这些初始化的参数强烈建议通过`argparse`模块(命令行参数的形式)输入, 不建议写死在代码中, 也不建议使用pycharm之类的IDE进行代码的运行, 强烈建议使用命令行直接运行.
 
@@ -235,7 +237,7 @@ python distributed.py -bk nccl -im tcp://10.10.10.1:12345 -rn 1 -ws 2
 
 &emsp;&emsp;一定要注意的是, 只能修改`rank`的值, 其他的值一律不得修改, 否则程序就卡死了初始化到这里也就结束了.
 
-### 数据的处理-DataLoader
+### 2.2.数据的处理-DataLoader
 
 &emsp;&emsp;其实数据的处理和正常的代码的数据处理非常类似, 但是因为多机多卡涉及到了效率问题, 所以这里才会使用`torch.utils.data.distributed.DistributedSampler`来规避数据传输的问题. 首先看下面的代码:
 
@@ -265,7 +267,7 @@ val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=
 
 &emsp;&emsp;当然了, 如果直接让各个节点自己读取自己的数据, 特别是在训练的时候经常是要打乱数据集进行训练的, 这样就会导致不同的节点加载的数据混乱, 所以这个时候使用`DistributedSampler`来创造一个`sampler`提供给`DataLoader`, `sampler`的作用自定义一个数据的编号, 然后让`DataLoader`按照这个编号来提取数据放入到模型中训练, 其中`sampler`参数和`shuffle`参数不能同时指定, 如果这个时候还想要可以随机的输入数据, 我们可以在`DistributedSampler`中指定`shuffle`参数, 具体的可以参考官网的<a href="https://pytorch.org/docs/stable/data.html#" traget="_blank">api</a>, 拉到最后就是`DistributedSampler`
 
-### 模型的处理
+### 2.3.模型的处理
 
 &emsp;&emsp;模型的处理其实和上面的单机多卡没有多大区别, 还是下面的代码, 但是注意要提前想把模型加载到gpu, 然后才可以加载到`DistributedDataParallel`
 
@@ -273,7 +275,7 @@ val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=
 model = model.cuda()
 model = nn.parallel.DistributedDataParallel(model)
 ```
-### 模型的保存与加载
+### 2.4.模型的保存与加载
 
 &emsp;&emsp;这里引用<a href="https://pytorch.org/tutorials/intermediate/ddp_tutorial.html" traget="_blank">pytorch官方教程</a>的一段代码:
 
