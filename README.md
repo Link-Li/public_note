@@ -1,9 +1,5 @@
 # public_note
 
-# 2019-9笔记
-
-- 2019-9笔记/2019-9-29-BN(Batch-Normalization)和LN(Layer-Normalization)的简单区别.md
-
 # blog
 
 ## deep_learn
