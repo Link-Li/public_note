@@ -1,12 +1,10 @@
-@[TOC](Attention)
-
 # Transformer
 
 ## Transformer总体图
 
 <center>
-<img src="img/attention/transformer.png" width="50%" height="50%" />
-Figure 1. Lena
+<img src="img/2019-9-22-Transformer/transformer.png" width="50%" height="50%" />
+Figure 1
 </center>
 
 **本文主要参考了以下链接**
@@ -83,7 +81,7 @@ $$
 
 &emsp;&emsp;从某些角度来说, 其实上面的就是全部的Self-Attention的内容了. 但是在连接线性层的时候, 因为我们发现Mutil-Head Attention的输出实际是8个, 这样的话就没法经过线性连接层了. 原论文中, 他们是直接把每个Self-Attention输出的结果$z$直接拼接起来, 然后通过一个$W^O$, 压缩成一个和$z$维度相同的向量, 入下图所示:
 
-![img/attention/transformer_attention_heads_weight_matrix_o.png](img/attention/transformer_attention_heads_weight_matrix_o.png)
+![img/attention/transformer_attention_heads_weight_matrix_o.png](img/2019-9-22-Transformer/transformer_attention_heads_weight_matrix_o.png)
 
 &emsp;&emsp;然后将这个矩阵再送入到线性连接层就可以了. 原论文中, 线性连接层, 使用了两层线性层, 并使用激活函数ReLu, 公式如下:
 

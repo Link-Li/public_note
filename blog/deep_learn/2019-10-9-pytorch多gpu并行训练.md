@@ -1,4 +1,5 @@
 
+
 目录
 =================
 
@@ -6,7 +7,8 @@
    * [pytorch多gpu并行训练](#pytorch多gpu并行训练)
       * [1.单机多卡并行训练](#1单机多卡并行训练)
          * [1.1.torch.nn.DataParallel](#11torchnndataparallel)
-         * [1.2.torch.nn.parallel.DistributedDataParallel](#12torchnnparalleldistributeddataparallel)
+         * [1.2.如何平衡DataParallel带来的显存使用不平衡的问题](#12如何平衡dataparallel带来的显存使用不平衡的问题)
+         * [1.3.torch.nn.parallel.DistributedDataParallel](#13torchnnparalleldistributeddataparallel)
       * [2.多机多gpu训练](#2多机多gpu训练)
          * [2.1.初始化](#21初始化)
             * [2.1.1.初始化backend](#211初始化backend)
@@ -18,6 +20,7 @@
          * [2.2.数据的处理-DataLoader](#22数据的处理-dataloader)
          * [2.3.模型的处理](#23模型的处理)
          * [2.4.模型的保存与加载](#24模型的保存与加载)
+
 
 
 
@@ -103,7 +106,53 @@ class DataParallel(Module):
 
 &emsp;&emsp;我没有进行深入得到考究, 但是我感觉使用`os.environ['CUDA_VISIBLE_DEVICES']`对可以使用的显卡进行限定之后, 显卡的实际编号和程序看到的编号应该是不一样的, 例如上面我们设定的是`os.environ['CUDA_VISIBLE_DEVICES']="0,2"`, 但是程序看到的显卡编号应该被改成了```'0,1'```, 也就是说程序所使用的显卡编号实际上是经过了一次映射之后才会映射到真正的显卡编号上面的, 例如这里的程序看到的1对应实际的2
 
-### 1.2.torch.nn.parallel.DistributedDataParallel
+### 1.2.如何平衡DataParallel带来的显存使用不平衡的问题
+
+&emsp;&emsp;这个问题其实讨论的也比较多了, 官方给的解决方案就是使用 `DistributedDataParallel`来代替 `DataParallel`(实际上`DistributedDataParallel`显存分配的也不是很平衡), 但是从某些角度来说, `DataParallel`使用起来确实比较方便, 而且最近使用 `DistributedDataParallel` 遇到一些小问题. 所以这里提供一个解决显存使用不平衡问题的方案:
+
+&emsp;&emsp;首先这次的解决方案来自transformer-XL的官方代码: https://github.com/kimiyoung/transformer-xl
+
+&emsp;&emsp;然后我将其中的平衡GPU显存的代码提取了出来放到了github上面:https://github.com/Link-Li/Balanced-DataParallel
+
+&emsp;&emsp;这里的代码是原作者继承了 `DataParallel` 类之后进行了改写:
+
+```
+class BalancedDataParallel(DataParallel):
+    def __init__(self, gpu0_bsz, *args, **kwargs):
+        self.gpu0_bsz = gpu0_bsz
+        super().__init__(*args, **kwargs)
+    ...
+```
+
+&emsp;&emsp;这个 `BalancedDataParallel` 类使用起来和 `DataParallel` 类似, 下面是一个示例代码:
+
+```
+my_net = MyNet()
+my_net = BalancedDataParallel(gpu0_bsz // acc_grad, my_net, dim=0).cuda()
+```
+
+&emsp;&emsp;这里包含三个参数, 第一个参数是第一个GPU要分配多大的batch_size, 但是要注意, 如果你使用了梯度累积, 那么这里传入的是每次进行运算的实际batch_size大小. 举个例子, 比如你在3个GPU上面跑代码, 但是一个GPU最大只能跑3条数据, 但是因为0号GPU还要做一些数据的整合操作, 于是0号GPU只能跑2条数据, 这样一算, 你可以跑的大小是2+3+3=8, 于是你可以设置下面的这样的参数:
+
+```
+batch_szie = 8
+gpu0_bsz = 2
+acc_grad = 1
+my_net = MyNet()
+my_net = BalancedDataParallel(gpu0_bsz // acc_grad, my_net, dim=0).cuda()
+```
+
+&emsp;&emsp;这个时候突然想跑个batch size是16的怎么办呢, 那就是4+6+6=16了, 这样设置累积梯度为2就行了:
+
+
+```
+batch_szie = 16
+gpu0_bsz = 4
+acc_grad = 2
+my_net = MyNet()
+my_net = BalancedDataParallel(gpu0_bsz // acc_grad, my_net, dim=0).cuda()
+```
+
+### 1.3.torch.nn.parallel.DistributedDataParallel
 
 &emsp;&emsp;pytorch的官网建议使用`DistributedDataParallel`来代替`DataParallel`, 据说是因为`DistributedDataParallel`比`DataParallel`运行的更快, 然后显存分屏的更加均衡. 而且`DistributedDataParallel`功能更加强悍, 例如分布式的模型(一个模型太大, 以至于无法放到一个GPU上运行, 需要分开到多个GPU上面执行). 只有`DistributedDataParallel`支持分布式的模型像单机模型那样可以进行多机多卡的运算.当然具体的怎么个情况, 建议看官方文档. 
 
