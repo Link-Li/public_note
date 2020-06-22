@@ -77,7 +77,7 @@ $$
 
 ## 编码层Encoder
 
-### Feed Forward操作
+### Feed Forward操作(这里不是FF操作,这里还是属于上面的多头注意力部分)
 
 &emsp;&emsp;从某些角度来说, 其实上面的就是全部的Self-Attention的内容了. 但是在连接线性层的时候, 因为我们发现Mutil-Head Attention的输出实际是8个, 这样的话就没法经过线性连接层了. 原论文中, 他们是直接把每个Self-Attention输出的结果$z$直接拼接起来, 然后通过一个$W^O$, 压缩成一个和$z$维度相同的向量, 入下图所示:
 
