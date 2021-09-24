@@ -25,6 +25,10 @@
 
 # 说明
 
+参考链接：
+<a href
+='https://pytorch.org/docs/master/distributed.html#multi-gpu-collective-functions' traget="_blank">DISTRIBUTED COMMUNICATION PACKAGE - TORCH.DISTRIBUTED</a>
+
 下面的教程是很久之前写的了，当时也忘记了当时使用的pytorch的版本号具体是多少了，估计是1.2或者1.0的。随着pytorch的版本逐渐更新迭代，到2021年9月的时候，目前已经迭代到1.9版本了，虽然torch.nn.DataParallel基本没有什么改变，但是torch.nn.parallel.DistributedDataParallel发生了一些改变，所以之后的关于torch.nn.parallel.DistributedDataParallel的使用方法发生了些许的改变，主要发生的改变如下：
 
 ## 1.和DataParallel的区别
