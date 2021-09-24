@@ -1,6 +1,6 @@
 
 
-目录
+<!-- 目录
 =================
 
    * [目录](#目录)
@@ -19,8 +19,89 @@
             * [2.1.4.初始化中一些需要注意的地方](#214初始化中一些需要注意的地方)
          * [2.2.数据的处理-DataLoader](#22数据的处理-dataloader)
          * [2.3.模型的处理](#23模型的处理)
-         * [2.4.模型的保存与加载](#24模型的保存与加载)
+         * [2.4.模型的保存与加载](#24模型的保存与加载) -->
 
+[TOC]
+
+# 说明
+
+下面的教程是很久之前写的了，当时也忘记了当时使用的pytorch的版本号具体是多少了，估计是1.2或者1.0的。随着pytorch的版本逐渐更新迭代，到2021年9月的时候，目前已经迭代到1.9版本了，虽然torch.nn.DataParallel基本没有什么改变，但是torch.nn.parallel.DistributedDataParallel发生了一些改变，所以之后的关于torch.nn.parallel.DistributedDataParallel的使用方法发生了些许的改变，主要发生的改变如下：
+
+## 1.和DataParallel的区别
+
+虽然不太清楚DistributedDataParallel的具体实现，但是现在的DistributedDataParallel是基于多进程策略的多GPU训练方式。首先是单机多卡的方式上，针对每个GPU，启动一个进程，然后这些进程在最开始的时候会保持一致，同时在更新模型的时候，梯度传播也是完全一致的，这样就可以保证任何一个GPU上面的模型参数就是完全一致的，所以这样就不会出现DataParallel那样的显存不均衡的问题。
+
+## 2.如何启动程序的时候
+
+其次是启动程序的时候，DistributedDataParallel和以前的方法略有不同，我尝试直接在程序里面设置torch.distributed.init_process_group的相关参数，但是都无法成功的使用多GPU。所以我现在采用的启动方式是在运行代码的时候，在命令前面加上一些前缀：
+
+### 2.1 单机多卡
+
+```
+python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE main.py
+nproc_per_node: 这个参数是指你使用这台服务器上面的几张显卡
+```
+
+### 2.2 多机多卡
+
+假设你有两台服务器，那么咸在一台服务器上面启动一个进程：
+
+```
+python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE
+           --nnodes=2 --node_rank=0 --master_addr="192.168.1.1"
+           --master_port=1234 main.py
+```
+
+之后在另外一台服务器上启动另外一个进程：
+
+```
+python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE
+           --nnodes=2 --node_rank=1 --master_addr="192.168.1.1"
+           --master_port=1234 main.py
+```
+
+记得把master_addr换成你自己的ip。其次就是参数nnodes表示你要使用几台服务器，node_rank表示你目前使用的是哪个服务器，其实就相当于给服务器编号了。
+
+### 2.3 代码里面的修改
+
+虽然这里设置好了启动的相关命令，但是代码也需要进行修改，主要是加上下面的代码：
+
+```
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--local_rank", type=int)
+args = parser.parse_args()
+```
+
+这个local_rank参数，可以理解为就是torch.distributed.launch在给一个GPU创建进程的时候，给这个进程提供的GPU号，这个是自动给的，不需要手动指定。
+
+之后就是在代码里面一定要写这句代码，而且这句代码要写在你所有和多GPU相关的代码前面，表明当前进程使用的GPU号，如果不写这句代码，所有的进程都默认的在你使用CUDA_VISIBLE_DEVICES参数设定的0号GPU上面启动。
+
+```
+torch.cuda.set_device(args.local_rank)  # before your code runs
+```
+
+### 2.4 简单的伪代码示例：
+
+```
+parser = argparse.ArgumentParser()
+parser.add_argument("--local_rank", type=int)
+args = parser.parse_args()
+
+my_model = Model()
+
+torch.cuda.set_device(opt.local_rank)
+torch.distributed.init_process_group(backend='nccl')
+my_model = my_model.cuda()  # 在使用DistributedDataParallel之前，需要先将模型放到GPU上
+my_model = torch.nn.parallel.DistributedDataParallel(my_model, find_unused_parameters=True)
+
+... ...
+...
+```
+
+## 3.batch size的设置
+
+因为DistributedDataParallel是在每个GPU上面起一个新的进程，所以这个时候设置的batch size实际上是指单个GPU上面的batch size大小。比如说，使用了2台服务器，每台服务器使用了8张GPU，然后batch size设置为了32，那么实际的batch size为32*8*2=512，所以实际的batch size并不是你设置的batch size。
 
 
 
