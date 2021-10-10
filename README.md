@@ -13,7 +13,10 @@
 - blog/deep_learn/2020-8-15-Rich feature hierarchies for accurate object detection and semantic segmentation.md
 
 ## Others
+
 - blog/Others/2019-10-3-ssh config配置 ssh快速连接.md
 
+## 面试
 
+- 2021年实习和秋招资料整理
 
