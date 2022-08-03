@@ -53,3 +53,15 @@ docker run -it docker_name_ubuntu /bin/bash
 docker run -d -v /data:/data docker_name /bin/bash /data/code/test_run.sh
 ```
 其中v是将本地文件夹挂载到docker里面，其中本地目录在前，docker目录在后
+
+- 开启一个docker环境后台运行
+
+```
+nvidia-docker run -itd -e NVIDIA_VISIBLE_DEVICES=all --network=host -v /data/:/data/ docker_name /bin/bash
+```
+
+- 进入开启的docker
+
+```
+nvidia-docker exec -it container_id /bin/bash
+```
